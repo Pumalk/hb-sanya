@@ -1,0 +1,1090 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ДЕЛО №21 · АЛЕКСАНДР ЧУРИН</title>
+<style>
+  :root{
+    --bg:#05060a;
+    --panel:#0b0e16;
+    --panel2:#0f1320;
+    --line:#1c2436;
+    --cyan:#00e5ff;
+    --pink:#ff2bd6;
+    --lime:#b6ff00;
+    --red:#ff2b4e;
+    --txt:#e8f0ff;
+    --muted:#8a93a8;
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html,body{height:100%;}
+  body{
+    background:var(--bg);
+    color:var(--txt);
+    font-family:var(--mono);
+    overflow-x:hidden;
+    min-height:100vh;
+    -webkit-font-smoothing:antialiased;
+  }
+  body.locked{overflow:hidden;}
+  a{color:var(--cyan);}
+
+  /* ---------- global overlays ---------- */
+  #stars{position:fixed; inset:0; z-index:0; display:block;}
+  .scanlines{
+    position:fixed; inset:0; z-index:2; pointer-events:none;
+    background:repeating-linear-gradient(
+      to bottom,
+      rgba(255,255,255,0.035) 0px,
+      rgba(255,255,255,0.035) 1px,
+      transparent 1px,
+      transparent 3px
+    );
+    mix-blend-mode:overlay;
+    opacity:.6;
+  }
+  .vignette{
+    position:fixed; inset:0; z-index:2; pointer-events:none;
+    background:radial-gradient(ellipse at center, transparent 45%, rgba(0,0,0,.75) 100%);
+  }
+  #confetti{position:fixed; inset:0; z-index:60; pointer-events:none;}
+  .trail-dot{
+    position:fixed; z-index:55; width:8px; height:8px; border-radius:50%;
+    pointer-events:none; background:var(--cyan);
+    box-shadow:0 0 10px var(--cyan),0 0 22px var(--cyan);
+    transform:translate(-50%,-50%);
+    animation:trailFade .55s linear forwards;
+  }
+  @keyframes trailFade{ to{opacity:0; transform:translate(-50%,-50%) scale(.2);} }
+
+  /* ---------- GATE ---------- */
+  #gate{
+    position:fixed; inset:0; z-index:100;
+    background:
+      radial-gradient(circle at 50% 20%, rgba(0,229,255,.08), transparent 55%),
+      radial-gradient(circle at 50% 90%, rgba(255,43,214,.07), transparent 55%),
+      #04050a;
+    display:flex; align-items:center; justify-content:center;
+    padding:20px;
+    transition:opacity .8s ease, visibility .8s;
+  }
+  #gate.hidden{opacity:0; visibility:hidden;}
+  .gate-box{
+    width:min(720px,100%);
+    border:1px solid var(--line);
+    background:linear-gradient(180deg, rgba(11,14,22,.96), rgba(6,8,14,.96));
+    box-shadow:0 0 0 1px rgba(0,229,255,.08), 0 0 60px rgba(0,229,255,.10), inset 0 0 60px rgba(0,0,0,.6);
+    padding:26px 22px;
+    position:relative;
+    overflow:hidden;
+  }
+  .gate-box::before{
+    content:"";
+    position:absolute; inset:0;
+    background:linear-gradient(180deg, transparent 0%, rgba(0,229,255,.05) 50%, transparent 100%);
+    animation:gateSweep 4s linear infinite;
+    pointer-events:none;
+  }
+  @keyframes gateSweep{ 0%{transform:translateY(-100%);} 100%{transform:translateY(100%);} }
+  .gate-head{
+    display:flex; align-items:center; gap:10px; margin-bottom:18px;
+    font-size:12px; letter-spacing:.22em; color:var(--cyan); text-transform:uppercase;
+  }
+  .gate-head .dot{
+    width:9px; height:9px; border-radius:50%; background:var(--red);
+    box-shadow:0 0 12px var(--red); animation:pulse 1.2s infinite;
+  }
+  @keyframes pulse{ 50%{opacity:.25;} }
+  .gate-title{
+    font-size:clamp(20px,4.5vw,32px); font-weight:900; letter-spacing:-.02em;
+    text-transform:uppercase; line-height:1.05; margin-bottom:6px;
+  }
+  .gate-sub{color:var(--muted); font-size:13px; margin-bottom:20px;}
+  #terminal{
+    font-size:13px; line-height:1.7; color:var(--lime);
+    min-height:150px; white-space:pre-wrap; word-break:break-word;
+    text-shadow:0 0 12px rgba(182,255,0,.35);
+  }
+  #terminal .dim{color:var(--muted); text-shadow:none;}
+  #terminal .ok{color:var(--cyan); text-shadow:0 0 12px rgba(0,229,255,.45);}
+  #terminal .bad{color:var(--red);}
+  .cursor-blink::after{content:"▌"; animation:blink 1s steps(1) infinite; color:var(--cyan);}
+  @keyframes blink{50%{opacity:0;}}
+  .gate-btn{
+    margin-top:22px; display:inline-flex; align-items:center; gap:10px;
+    padding:14px 22px; border:1px solid var(--cyan); background:rgba(0,229,255,.08);
+    color:var(--cyan); font-family:var(--mono); font-size:13px; font-weight:700;
+    letter-spacing:.15em; text-transform:uppercase; cursor:pointer;
+    transition:.25s; box-shadow:0 0 24px rgba(0,229,255,.18);
+  }
+  .gate-btn:hover{background:rgba(0,229,255,.18); box-shadow:0 0 40px rgba(0,229,255,.35); transform:translateY(-1px);}
+  .gate-btn:disabled{opacity:.35; cursor:wait; transform:none;}
+  .gate-foot{margin-top:18px; font-size:11px; color:#5b6478; letter-spacing:.12em;}
+
+  /* ---------- MAIN ---------- */
+  #main{position:relative; z-index:3; opacity:0; pointer-events:none; transition:opacity 1s ease;}
+  body.entered #main{opacity:1; pointer-events:auto;}
+
+  .wrap{width:min(1180px, 100% - 32px); margin:0 auto;}
+
+  /* hero */
+  .hero{
+    min-height:100svh;
+    display:flex; flex-direction:column; justify-content:center;
+    padding:70px 0 50px;
+    position:relative;
+    overflow:hidden;
+  }
+  .hero::after{
+    content:"";
+    position:absolute; inset:0; pointer-events:none;
+    background:
+      radial-gradient(circle at 15% 20%, rgba(0,229,255,.14), transparent 42%),
+      radial-gradient(circle at 85% 75%, rgba(255,43,214,.12), transparent 45%);
+    z-index:-1;
+  }
+  .chip{
+    display:inline-flex; align-items:center; gap:8px;
+    padding:7px 12px; border:1px solid var(--line); background:rgba(11,14,22,.7);
+    font-size:11px; letter-spacing:.2em; text-transform:uppercase; color:var(--muted);
+    width:max-content; margin-bottom:22px;
+  }
+  .chip b{color:var(--lime); font-weight:700;}
+  .hero-title{
+    font-size:clamp(2.1rem, 8.4vw, 6.4rem);
+    font-weight:900; line-height:.92; letter-spacing:-.045em; text-transform:uppercase;
+    position:relative; display:inline-block; max-width:100%;
+  }
+  .hero-title .num{
+    display:inline-block;
+    color:transparent;
+    -webkit-text-stroke:1.5px var(--cyan);
+    text-shadow:0 0 22px rgba(0,229,255,.35);
+  }
+  .glitch{position:relative; display:inline-block; color:var(--txt);}
+  .glitch::before,.glitch::after{
+    content:attr(data-text); position:absolute; left:0; top:0; width:100%;
+    overflow:hidden; pointer-events:none;
+  }
+  .glitch::before{
+    color:var(--pink); transform:translate(2px,-2px);
+    clip-path:polygon(0 0,100% 0,100% 38%,0 38%);
+    animation:gl1 2.6s infinite linear alternate-reverse;
+  }
+  .glitch::after{
+    color:var(--cyan); transform:translate(-2px,2px);
+    clip-path:polygon(0 62%,100% 62%,100% 100%,0 100%);
+    animation:gl2 2.1s infinite linear alternate-reverse;
+  }
+  @keyframes gl1{
+    0%,90%{transform:translate(2px,-2px);}
+    92%{transform:translate(-7px,-3px);}
+    94%{transform:translate(6px,1px);}
+    96%{transform:translate(-3px,2px);}
+    100%{transform:translate(2px,-2px);}
+  }
+  @keyframes gl2{
+    0%,88%{transform:translate(-2px,2px);}
+    90%{transform:translate(8px,2px);}
+    93%{transform:translate(-6px,-2px);}
+    96%{transform:translate(3px,3px);}
+    100%{transform:translate(-2px,2px);}
+  }
+  .hero-sub{
+    margin-top:24px; font-size:clamp(13px,2.1vw,17px); color:var(--muted);
+    min-height:1.6em; letter-spacing:.04em;
+  }
+  .hero-sub .caret{color:var(--cyan);}
+  .hero-meta{
+    display:flex; flex-wrap:wrap; gap:10px; margin-top:26px;
+  }
+  .meta{
+    border:1px solid var(--line); background:rgba(11,14,22,.75);
+    padding:10px 14px; font-size:12px; letter-spacing:.08em; color:var(--txt);
+  }
+  .meta span{color:var(--muted);}
+  .meta b{color:var(--lime);}
+  .hero-actions{display:flex; flex-wrap:wrap; gap:12px; margin-top:32px;}
+  .btn{
+    border:1px solid var(--line); background:rgba(11,14,22,.85); color:var(--txt);
+    font-family:var(--mono); font-size:12px; font-weight:700; letter-spacing:.14em;
+    text-transform:uppercase; padding:13px 18px; cursor:pointer; transition:.22s;
+  }
+  .btn:hover{border-color:var(--cyan); color:var(--cyan); box-shadow:0 0 26px rgba(0,229,255,.2); transform:translateY(-1px);}
+  .btn.primary{border-color:var(--cyan); background:rgba(0,229,255,.1); color:var(--cyan);}
+  .btn.primary:hover{background:rgba(0,229,255,.2);}
+  .btn.danger{border-color:var(--red); background:rgba(255,43,78,.08); color:var(--red);}
+  .btn.danger:hover{background:rgba(255,43,78,.18); box-shadow:0 0 26px rgba(255,43,78,.25);}
+  .scroll-hint{
+    margin-top:46px; font-size:11px; color:#5b6478; letter-spacing:.3em; text-transform:uppercase;
+    animation:floatY 2.6s ease-in-out infinite;
+  }
+  @keyframes floatY{50%{transform:translateY(7px);}}
+
+  /* ticker */
+  .ticker{
+    border-top:1px solid var(--line); border-bottom:1px solid var(--line);
+    background:rgba(11,14,22,.8); overflow:hidden; white-space:nowrap;
+    padding:12px 0; position:relative; z-index:3;
+  }
+  .ticker-track{display:inline-flex; gap:36px; animation:tick 38s linear infinite; will-change:transform;}
+  .ticker:hover .ticker-track{animation-play-state:paused;}
+  @keyframes tick{ to{transform:translateX(-50%);} }
+  .ticker span{
+    font-size:12px; letter-spacing:.18em; text-transform:uppercase; color:var(--muted);
+  }
+  .ticker span b{color:var(--pink);}
+  .ticker span i{color:var(--cyan); font-style:normal;}
+
+  /* section */
+  section{padding:84px 0; position:relative; z-index:3;}
+  .sec-head{margin-bottom:36px;}
+  .sec-kicker{
+    font-size:11px; letter-spacing:.32em; text-transform:uppercase; color:var(--cyan);
+    margin-bottom:12px;
+  }
+  .sec-title{
+    font-size:clamp(1.5rem,4vw,2.6rem); font-weight:900; letter-spacing:-.03em;
+    text-transform:uppercase; line-height:1.02;
+  }
+  .sec-desc{color:var(--muted); font-size:13px; margin-top:12px; max-width:60ch; line-height:1.7;}
+
+  /* dossier */
+  .dossier{
+    display:grid; grid-template-columns: 200px 1fr; gap:0;
+    border:1px solid var(--line); background:linear-gradient(180deg, rgba(11,14,22,.9), rgba(7,9,15,.9));
+    position:relative; overflow:hidden;
+    box-shadow:0 0 60px rgba(0,0,0,.5);
+  }
+  .dossier::before,.dossier::after{
+    content:""; position:absolute; width:18px; height:18px; border:2px solid var(--cyan);
+    pointer-events:none;
+  }
+  .dossier::before{top:8px; left:8px; border-right:0; border-bottom:0;}
+  .dossier::after{bottom:8px; right:8px; border-left:0; border-top:0;}
+  .dossier-side{
+    border-right:1px dashed var(--line); padding:26px 20px;
+    display:flex; flex-direction:column; gap:16px; align-items:center; text-align:center;
+    background:
+      repeating-linear-gradient(45deg, rgba(255,255,255,.012) 0 8px, transparent 8px 16px);
+  }
+  .stamp{
+    width:118px; height:118px; border-radius:50%;
+    border:3px solid var(--red); color:var(--red);
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    font-weight:900; font-size:11px; letter-spacing:.14em; line-height:1.3;
+    text-transform:uppercase; transform:rotate(-12deg);
+    box-shadow:0 0 30px rgba(255,43,78,.18), inset 0 0 22px rgba(255,43,78,.12);
+    text-align:center; padding:8px;
+  }
+  .stamp b{font-size:26px; letter-spacing:0; display:block;}
+  .side-code{font-size:10px; color:#5b6478; letter-spacing:.18em; line-height:1.9;}
+  .dossier-body{padding:26px 24px 30px;}
+  .dossier-title{
+    font-size:clamp(1.1rem,2.6vw,1.5rem); font-weight:900; text-transform:uppercase;
+    letter-spacing:.02em; margin-bottom:6px;
+  }
+  .dossier-sub{font-size:11px; color:var(--muted); letter-spacing:.2em; text-transform:uppercase; margin-bottom:22px;}
+  .field{
+    display:grid; grid-template-columns: 170px 1fr; gap:14px;
+    padding:11px 0; border-bottom:1px dashed var(--line); font-size:13px;
+  }
+  .field:last-child{border-bottom:0;}
+  .field .k{color:var(--muted); font-size:11px; letter-spacing:.16em; text-transform:uppercase; padding-top:2px;}
+  .field .v{color:var(--txt); line-height:1.5;}
+  .field .v b{color:var(--lime);}
+  .field .v em{color:var(--pink); font-style:normal;}
+
+  /* cards */
+  .grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:14px;}
+  .card{
+    border:1px solid var(--line); background:linear-gradient(180deg, rgba(13,17,28,.92), rgba(7,9,15,.92));
+    padding:22px 20px; position:relative; overflow:hidden;
+    transition:transform .25s ease, border-color .25s ease, box-shadow .25s ease;
+    transform-style:preserve-3d; will-change:transform;
+  }
+  .card::before{
+    content:""; position:absolute; inset:0;
+    background:radial-gradient(400px circle at var(--mx,50%) var(--my,50%), rgba(0,229,255,.10), transparent 45%);
+    opacity:0; transition:opacity .3s; pointer-events:none;
+  }
+  .card:hover{border-color:rgba(0,229,255,.45); box-shadow:0 18px 50px rgba(0,0,0,.5), 0 0 40px rgba(0,229,255,.08);}
+  .card:hover::before{opacity:1;}
+  .card .ico{font-size:26px; display:block; margin-bottom:12px; filter:drop-shadow(0 0 10px rgba(0,229,255,.35));}
+  .card h3{font-size:14px; text-transform:uppercase; letter-spacing:.06em; margin-bottom:8px;}
+  .card p{font-size:12.5px; color:var(--muted); line-height:1.65;}
+  .card p b{color:var(--txt);}
+  .card .tag{
+    position:absolute; top:12px; right:12px; font-size:9px; letter-spacing:.16em;
+    color:#5b6478; border:1px solid var(--line); padding:3px 6px; text-transform:uppercase;
+  }
+
+  /* timeline */
+  .timeline{position:relative; padding-left:26px;}
+  .timeline::before{
+    content:""; position:absolute; left:7px; top:6px; bottom:6px; width:2px;
+    background:linear-gradient(180deg, var(--cyan), var(--pink), var(--lime));
+    box-shadow:0 0 18px rgba(0,229,255,.4);
+  }
+  .tl-item{position:relative; padding:0 0 30px 18px;}
+  .tl-item:last-child{padding-bottom:0;}
+  .tl-item::before{
+    content:""; position:absolute; left:-26px; top:4px; width:14px; height:14px;
+    border-radius:50%; background:var(--bg); border:2px solid var(--cyan);
+    box-shadow:0 0 16px rgba(0,229,255,.6);
+  }
+  .tl-item:nth-child(2)::before{border-color:var(--pink); box-shadow:0 0 16px rgba(255,43,214,.6);}
+  .tl-item:nth-child(3)::before{border-color:var(--lime); box-shadow:0 0 16px rgba(182,255,0,.55);}
+  .tl-year{font-size:12px; letter-spacing:.24em; color:var(--cyan); margin-bottom:6px;}
+  .tl-item:nth-child(2) .tl-year{color:var(--pink);}
+  .tl-item:nth-child(3) .tl-year{color:var(--lime);}
+  .tl-title{font-size:15px; font-weight:800; text-transform:uppercase; margin-bottom:6px;}
+  .tl-text{font-size:12.5px; color:var(--muted); line-height:1.7; max-width:70ch;}
+
+  /* chat */
+  .chat{
+    border:1px solid var(--line); background:rgba(8,10,17,.92);
+    max-width:720px; margin:0 auto; overflow:hidden;
+    box-shadow:0 0 60px rgba(0,0,0,.55);
+  }
+  .chat-head{
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+    padding:12px 16px; border-bottom:1px solid var(--line); background:rgba(13,17,28,.9);
+    font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:var(--muted);
+  }
+  .chat-head b{color:var(--txt); letter-spacing:.06em;}
+  .chat-head .live{color:var(--red);}
+  .chat-body{padding:18px 16px; display:flex; flex-direction:column; gap:12px;}
+  .msg{max-width:82%; padding:10px 13px; font-size:12.5px; line-height:1.55; position:relative; border:1px solid var(--line);}
+  .msg .who{display:block; font-size:9.5px; letter-spacing:.16em; text-transform:uppercase; color:var(--muted); margin-bottom:4px;}
+  .msg.left{align-self:flex-start; background:rgba(13,17,28,.9); border-top-left-radius:2px;}
+  .msg.right{align-self:flex-end; background:rgba(0,229,255,.07); border-color:rgba(0,229,255,.28); border-top-right-radius:2px;}
+  .msg.right .who{color:var(--cyan);}
+  .msg .time{display:block; text-align:right; font-size:9px; color:#4c5568; margin-top:5px;}
+  .msg.sys{align-self:center; background:transparent; border:0; color:#5b6478; font-size:10.5px; letter-spacing:.14em; text-transform:uppercase;}
+
+  /* roast */
+  .roast-box{
+    border:1px solid var(--line); background:rgba(11,14,22,.9);
+    padding:30px 24px; text-align:center; position:relative; overflow:hidden;
+  }
+  .roast-box::before{
+    content:""; position:absolute; inset:0;
+    background:radial-gradient(circle at 50% 0%, rgba(255,43,214,.10), transparent 60%);
+    pointer-events:none;
+  }
+  #roast{
+    min-height:96px; display:flex; align-items:center; justify-content:center;
+    font-size:clamp(15px,3vw,24px); font-weight:800; line-height:1.35;
+    padding:10px 0 20px; text-shadow:0 0 26px rgba(0,229,255,.2);
+  }
+  #roast.pop{animation:pop .4s ease;}
+  @keyframes pop{0%{transform:scale(.94); opacity:.3;} 100%{transform:scale(1); opacity:1;}}
+  .roast-controls{display:flex; gap:12px; justify-content:center; flex-wrap:wrap;}
+
+  /* secret */
+  .secret-zone{
+    border:1px solid rgba(255,43,78,.35); background:rgba(255,43,78,.04);
+    padding:40px 24px; text-align:center; position:relative; overflow:hidden;
+  }
+  .secret-zone p{color:var(--muted); font-size:12.5px; max-width:52ch; margin:0 auto 18px; line-height:1.8;}
+  .secret-btn{
+    border:1px solid var(--red); background:rgba(255,43,78,.1); color:var(--red);
+    font-family:var(--mono); font-weight:900; letter-spacing:.18em; text-transform:uppercase;
+    padding:16px 26px; cursor:pointer; transition:.25s; font-size:13px;
+    animation:secretPulse 2.2s ease-in-out infinite;
+  }
+  .secret-btn:hover{background:rgba(255,43,78,.25); box-shadow:0 0 46px rgba(255,43,78,.4);}
+  @keyframes secretPulse{50%{box-shadow:0 0 34px rgba(255,43,78,.35);}}
+
+  /* modal */
+  #secretModal{
+    position:fixed; inset:0; z-index:120; display:none;
+    align-items:center; justify-content:center; padding:20px;
+    background:rgba(3,4,8,.92); backdrop-filter:blur(6px);
+  }
+  #secretModal.open{display:flex; animation:pop .35s ease;}
+  .modal-box{
+    max-width:640px; width:100%; border:1px solid var(--red);
+    background:linear-gradient(180deg, rgba(20,6,12,.97), rgba(8,4,8,.97));
+    padding:38px 26px; text-align:center; position:relative;
+    box-shadow:0 0 90px rgba(255,43,78,.3);
+  }
+  .modal-box .code{font-size:10px; letter-spacing:.3em; color:var(--red); margin-bottom:18px; text-transform:uppercase;}
+  .modal-text{
+    font-size:clamp(20px,5.4vw,40px); font-weight:900; text-transform:uppercase;
+    line-height:1.05; letter-spacing:-.02em; color:#fff;
+    text-shadow:0 0 24px rgba(255,43,78,.7), 0 0 60px rgba(255,43,78,.3);
+    animation:shake .18s infinite;
+  }
+  @keyframes shake{
+    0%{transform:translate(0,0);} 25%{transform:translate(-1px,1px);}
+    50%{transform:translate(1px,-1px);} 75%{transform:translate(-1px,-1px);} 100%{transform:translate(0,0);}
+  }
+  .modal-sub{margin-top:16px; color:var(--muted); font-size:12px; line-height:1.7;}
+  .modal-close{
+    margin-top:26px; border:1px solid var(--line); background:transparent; color:var(--txt);
+    font-family:var(--mono); padding:12px 20px; cursor:pointer; letter-spacing:.16em;
+    text-transform:uppercase; font-size:11px; transition:.2s;
+  }
+  .modal-close:hover{border-color:var(--cyan); color:var(--cyan);}
+
+  /* final */
+  .final{
+    text-align:center; padding:100px 0 80px; position:relative;
+  }
+  .final-title{
+    font-size:clamp(1.6rem,5.4vw,3.4rem); font-weight:900; text-transform:uppercase;
+    letter-spacing:-.03em; line-height:1.02; margin-bottom:16px;
+  }
+  .final-title span{color:var(--cyan); text-shadow:0 0 30px rgba(0,229,255,.5);}
+  .final-sub{color:var(--muted); font-size:13px; line-height:1.9; max-width:60ch; margin:0 auto 30px;}
+  .sig{
+    margin-top:34px; font-size:11px; letter-spacing:.3em; text-transform:uppercase; color:#5b6478;
+  }
+  .sig b{color:var(--pink);}
+  footer{
+    border-top:1px solid var(--line); padding:22px 0 34px; text-align:center;
+    font-size:10.5px; color:#4c5568; letter-spacing:.18em; text-transform:uppercase;
+    position:relative; z-index:3;
+  }
+
+  /* reveal */
+  .reveal{opacity:0; transform:translateY(26px); transition:opacity .8s cubic-bezier(.2,.7,.2,1), transform .8s cubic-bezier(.2,.7,.2,1);}
+  .reveal.in{opacity:1; transform:none;}
+
+  @media (max-width:760px){
+    .dossier{grid-template-columns:1fr;}
+    .dossier-side{border-right:0; border-bottom:1px dashed var(--line); flex-direction:row; justify-content:flex-start; text-align:left; flex-wrap:wrap;}
+    .field{grid-template-columns:1fr; gap:4px;}
+    .field .k{padding-top:0;}
+    .stamp{width:86px; height:86px; font-size:9px;}
+    .stamp b{font-size:20px;}
+    section{padding:60px 0;}
+    .msg{max-width:92%;}
+  }
+  @media (prefers-reduced-motion: reduce){
+    *{animation-duration:.001s !important; animation-iteration-count:1 !important; transition-duration:.001s !important;}
+  }
+</style>
+</head>
+<body class="locked">
+
+<canvas id="stars"></canvas>
+<div class="scanlines"></div>
+<div class="vignette"></div>
+<canvas id="confetti"></canvas>
+
+<!-- ================= GATE ================= -->
+<div id="gate">
+  <div class="gate-box">
+    <div class="gate-head"><span class="dot"></span> Пограничная служба · пост «Шишковка» · 21-й километр</div>
+    <div class="gate-title">Проверка документов</div>
+    <div class="gate-sub">Гражданин, предъявите паспорт. Это не шутка. Это протокол.</div>
+    <div id="terminal"></div>
+    <button class="gate-btn" id="gateBtn">Предъявить паспорт</button>
+    <div class="gate-foot">06.11.2026 · УЛАН-УДЭ → МОСКВА · РЕЖИМ: ДОПУСК</div>
+  </div>
+</div>
+
+<!-- ================= MAIN ================= -->
+<div id="main">
+
+  <!-- HERO -->
+  <header class="hero">
+    <div class="wrap">
+      <div class="chip">дело <b>№21</b> · статус: <b>на свободе</b> · 06.11.2026</div>
+      <h1 class="hero-title">
+        <span class="glitch" data-text="С ДНЁМ РОЖДЕНИЯ,">С ДНЁМ РОЖДЕНИЯ,</span><br>
+        <span class="glitch" data-text="ЧУРИН">ЧУРИН</span>
+        <span class="num">/21</span>
+      </h1>
+      <div class="hero-sub" id="heroSub"></div>
+      <div class="hero-meta">
+        <div class="meta"><span>РОДОМ:</span> <b>УЛАН-УДЭ</b></div>
+        <div class="meta"><span>СЕЙЧАС:</span> <b>МОСКВА</b></div>
+        <div class="meta"><span>ВОЗВРАЩЕНИЕ:</span> <b>2028</b></div>
+        <div class="meta"><span>СТАТУС:</span> <b>ЛОШАРА, НО НАШ</b></div>
+      </div>
+      <div class="hero-actions">
+        <button class="btn primary" id="scrollRoast">Скинуть подъёб</button>
+        <button class="btn" id="scrollDossier">Открыть досье</button>
+        <button class="btn danger" id="secretFromHero">Не нажимать</button>
+      </div>
+      <div class="scroll-hint">↓ листай, тут всё про тебя ↓</div>
+    </div>
+  </header>
+
+  <!-- TICKER -->
+  <div class="ticker" aria-hidden="true">
+    <div class="ticker-track" id="tickerTrack"></div>
+  </div>
+
+  <!-- DOSSIER -->
+  <section id="dossier">
+    <div class="wrap reveal">
+      <div class="sec-head">
+        <div class="sec-kicker">// личное дело</div>
+        <h2 class="sec-title">Досье на именинника</h2>
+        <p class="sec-desc">Собрано из переписки, доносов соседей и показаний свидетелей. Всё подтверждено скринами, которые уже не отмажешь.</p>
+      </div>
+
+      <div class="dossier">
+        <div class="dossier-side">
+          <div class="stamp">ДОПУЩЕН<b>21</b>лет</div>
+          <div class="side-code">
+            ФАЙЛ: CHURIN-A.A.<br>
+            ТОМ: XXI<br>
+            ЛИСТОВ: 21<br>
+            ГРИФ: АПЧИХБА
+          </div>
+        </div>
+        <div class="dossier-body">
+          <div class="dossier-title">Чурин Александр</div>
+          <div class="dossier-sub">он же Саня · он же чурка · он же «мой ебанутый друг»</div>
+
+          <div class="field"><div class="k">Дата рождения</div><div class="v"><b>06.11.2005</b> · сегодня стукнуло <em>21</em></div></div>
+          <div class="field"><div class="k">Место рождения</div><div class="v">Улан-Удэ. Раёны: Шишковка, Элеватор, Юбилейный. Мемы про «на элеваторе» — не выдумка.</div></div>
+          <div class="field"><div class="k">Текущая дислокация</div><div class="v">Москва, с 2023 года. По официальной версии — <b>учёба</b>. По неофициальной — ищет, где шаурма за 180.</div></div>
+          <div class="field"><div class="k">Планы</div><div class="v">В 2028 вернуться полностью. Летом и зимой приезжает в отпуск. Так что <em>не прощаемся</em>.</div></div>
+          <div class="field"><div class="k">Особые приметы</div><div class="v">Борода длиннее волос на голове. Взгляд человека, который видел 1,5к часов в доте.</div></div>
+          <div class="field"><div class="k">Опасен ли</div><div class="v">Для печени — да. Для друзей — <b>нет, свой</b>. Для эстакады — пока не ясно.</div></div>
+          <div class="field"><div class="k">Примечание следствия</div><div class="v">Ученик года, МАН, тренировки, работа, ревизия. И при этом всё равно <em>даун</em>. Как так — науке неизвестно.</div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CARDS -->
+  <section>
+    <div class="wrap">
+      <div class="sec-head reveal">
+        <div class="sec-kicker">// вещдоки</div>
+        <h2 class="sec-title">Материалы дела</h2>
+        <p class="sec-desc">Восемь пунктов, по которым тебя можно опознать без паспорта.</p>
+      </div>
+      <div class="grid" id="cards"></div>
+    </div>
+  </section>
+
+  <!-- TIMELINE -->
+  <section>
+    <div class="wrap">
+      <div class="sec-head reveal">
+        <div class="sec-kicker">// маршрут</div>
+        <h2 class="sec-title">Улан-Удэ → Москва → 2028</h2>
+        <p class="sec-desc">География твоей жизни. Пока что ты в командировке. Мы ждём.</p>
+      </div>
+      <div class="timeline reveal">
+        <div class="tl-item">
+          <div class="tl-year">2005 — 2023</div>
+          <div class="tl-title">Улан-Удэ. Базовый лагерь</div>
+          <div class="tl-text">Шишковка, Элеватор, Юбилейный, бро-бургер за 180, самокаты, шаурма, «на элеваторе». Здесь ты стал тем, кем стал: чуркой с большими планами.</div>
+        </div>
+        <div class="tl-item">
+          <div class="tl-year">2023 — 2028</div>
+          <div class="tl-title">Москва. Командировка</div>
+          <div class="tl-text">Учёба, общежитие/хата, метро, локдауны, ревизии. Ты уехал, но мемы остались те же. Приезжаешь летом и зимой — и каждый раз это событие.</div>
+        </div>
+        <div class="tl-item">
+          <div class="tl-year">2028 — ∞</div>
+          <div class="tl-title">Возвращение. Полное</div>
+          <div class="tl-text">Ты вернёшься. Мы уже готовим встречу. Будет Лансер, будет шаурма, будет «я твое все ебал» на весь двор.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CHAT 2026 -->
+  <section>
+    <div class="wrap">
+      <div class="sec-head reveal">
+        <div class="sec-kicker">// архив переписки · 2026</div>
+        <h2 class="sec-title">Чат про машины</h2>
+        <p class="sec-desc">Восстановлено из резервной копии. Орфография и мат сохранены.</p>
+      </div>
+      <div class="chat reveal">
+        <div class="chat-head">
+          <span><b>Кирилл</b> и <b>Саня</b></span>
+          <span class="live">● 2026</span>
+        </div>
+        <div class="chat-body">
+          <div class="msg sys">— 12 марта 2026 —</div>
+          <div class="msg left"><span class="who">Кирилл</span>Саня, ты когда летом приедешь?<span class="time">12:04</span></div>
+          <div class="msg right"><span class="who">Саня</span>В июле, числа 10. Как раз сессия закроется<span class="time">12:06</span></div>
+          <div class="msg left"><span class="who">Кирилл</span>Го на Лансере прокатимся? На механике, как ты любишь<span class="time">12:07</span></div>
+          <div class="msg right"><span class="who">Саня</span>На механике я только с эстакады пока что<span class="time">12:09</span></div>
+          <div class="msg right"><span class="who">Саня</span>Кстати в Москве смотрю тачки. 21 год — уже можно думать, а не только мечтать<span class="time">12:10</span></div>
+          <div class="msg left"><span class="who">Кирилл</span>Ты сначала в 2028 вернись, механик<span class="time">12:11</span></div>
+          <div class="msg right"><span class="who">Саня</span>Я тебе в 2028 такой мем привезу, что ты пожалеешь<span class="time">12:12</span></div>
+          <div class="msg sys">— конец выдержки —</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ROAST -->
+  <section>
+    <div class="wrap">
+      <div class="sec-head reveal">
+        <div class="sec-kicker">// генератор подъёбов</div>
+        <h2 class="sec-title">Нажми, получи по ебалу</h2>
+        <p class="sec-desc">Кнопка выдаёт случайный подъёб из архива. Все фразы твои, ты сам это писал. Не отмажешься.</p>
+      </div>
+      <div class="roast-box reveal">
+        <div id="roast">нажми кнопку, чурка</div>
+        <div class="roast-controls">
+          <button class="btn primary" id="roastBtn">Скинуть подъёб</button>
+          <button class="btn" id="saluteBtn">Запустить салют</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SECRET -->
+  <section>
+    <div class="wrap">
+      <div class="secret-zone reveal">
+        <div class="sec-kicker" style="color:var(--red)">// совершенно секретно</div>
+        <h2 class="sec-title" style="margin-bottom:14px">Тут ничего нет</h2>
+        <p>Серьёзно. Не надо. Это служебная кнопка. Если нажмёшь — узнаешь то, что ты и так знаешь.</p>
+        <button class="secret-btn" id="secretBtn">Не нажимать</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- FINAL -->
+  <section class="final">
+    <div class="wrap reveal">
+      <div class="sec-kicker">// вердикт</div>
+      <h2 class="final-title">С ДНЁМ РОЖДЕНИЯ, <span>САНЯ</span></h2>
+      <p class="final-sub">
+        21 год. Ты всё ещё чурка, всё ещё даун, всё ещё лошара —<br>
+        но ты наш лошара, и это главное.<br>
+        Москва тебя не испортила. Улан-Удэ тебя не забыл. 2028 уже близко.
+      </p>
+      <div class="hero-actions" style="justify-content:center">
+        <button class="btn primary" id="finalSalute">Салют в твою честь</button>
+        <button class="btn danger" id="finalSecret">Секрет</button>
+      </div>
+      <div class="sig">апчихба 🤙🖤 · <b>Кирилл</b></div>
+    </div>
+  </section>
+
+  <footer>
+    сделано Кириллом · 06.11.2026 · Улан-Удэ → Москва → 2028 · без медиа, без звука, только мемы
+  </footer>
+</div>
+
+<!-- ================= SECRET MODAL ================= -->
+<div id="secretModal">
+  <div class="modal-box">
+    <div class="code">// доступ разрешён · уровень: друг</div>
+    <div class="modal-text">Я ТВОЕ ВСЕ ЕБАЛ</div>
+    <div class="modal-sub">Ты это знал. Я это знал. Теперь это официально, с печатью и салютом.</div>
+    <button class="modal-close" id="secretClose">Закрыть, лошара</button>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  var $ = function(s){ return document.querySelector(s); };
+  var $$ = function(s){ return Array.prototype.slice.call(document.querySelectorAll(s)); };
+  var reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  /* ============ STARS ============ */
+  (function stars(){
+    var c = $("#stars"), x = c.getContext("2d");
+    var w,h,dpr, pts = [];
+    function size(){
+      dpr = Math.min(window.devicePixelRatio || 1, 2);
+      w = c.width = innerWidth * dpr;
+      h = c.height = innerHeight * dpr;
+      c.style.width = innerWidth+"px";
+      c.style.height = innerHeight+"px";
+      pts = [];
+      var n = Math.min(110, Math.floor(innerWidth*innerHeight/16000));
+      for(var i=0;i<n;i++){
+        pts.push({
+          x: Math.random()*w, y: Math.random()*h,
+          r: (Math.random()*1.6+0.4)*dpr,
+          vx: (Math.random()-0.5)*0.12*dpr,
+          vy: (Math.random()-0.5)*0.12*dpr,
+          a: Math.random()*0.6+0.15,
+          col: Math.random()<0.5 ? "0,229,255" : (Math.random()<0.5 ? "255,43,214" : "182,255,0")
+        });
+      }
+    }
+    function loop(){
+      x.clearRect(0,0,w,h);
+      for(var i=0;i<pts.length;i++){
+        var p = pts[i];
+        p.x += p.vx; p.y += p.vy;
+        if(p.x<0) p.x=w; if(p.x>w) p.x=0;
+        if(p.y<0) p.y=h; if(p.y>h) p.y=0;
+        x.beginPath();
+        x.fillStyle = "rgba("+p.col+","+p.a+")";
+        x.arc(p.x,p.y,p.r,0,Math.PI*2);
+        x.fill();
+      }
+      // faint connections
+      for(var i=0;i<pts.length;i++){
+        for(var j=i+1;j<pts.length;j++){
+          var dx=pts[i].x-pts[j].x, dy=pts[i].y-pts[j].y;
+          var d2=dx*dx+dy*dy;
+          if(d2 < (120*dpr)*(120*dpr)){
+            x.strokeStyle="rgba(0,229,255,"+(0.05*(1-d2/(120*dpr*120*dpr)))+")";
+            x.lineWidth=1;
+            x.beginPath(); x.moveTo(pts[i].x,pts[i].y); x.lineTo(pts[j].x,pts[j].y); x.stroke();
+          }
+        }
+      }
+      requestAnimationFrame(loop);
+    }
+    size();
+    addEventListener("resize", size);
+    if(!reduce) loop(); else { /* static */ x.clearRect(0,0,w,h); }
+  })();
+
+  /* ============ CURSOR TRAIL ============ */
+  (function trail(){
+    if(reduce) return;
+    if(matchMedia("(pointer: coarse)").matches) return;
+    var last = 0;
+    addEventListener("mousemove", function(e){
+      var now = Date.now();
+      if(now - last < 26) return;
+      last = now;
+      var d = document.createElement("div");
+      d.className = "trail-dot";
+      d.style.left = e.clientX+"px";
+      d.style.top = e.clientY+"px";
+      d.style.background = Math.random()<0.5 ? "var(--cyan)" : "var(--pink)";
+      document.body.appendChild(d);
+      setTimeout(function(){ d.remove(); }, 600);
+    });
+  })();
+
+  /* ============ CONFETTI ============ */
+  var confetti = (function(){
+    var c = $("#confetti"), x = c.getContext("2d");
+    var w,h,dpr, parts = [], running = false;
+    function size(){
+      dpr = Math.min(window.devicePixelRatio || 1, 2);
+      w = c.width = innerWidth*dpr;
+      h = c.height = innerHeight*dpr;
+      c.style.width = innerWidth+"px";
+      c.style.height = innerHeight+"px";
+    }
+    size(); addEventListener("resize", size);
+    var colors = ["#00e5ff","#ff2bd6","#b6ff00","#ff2b4e","#ffffff","#ffd400"];
+    function burst(n){
+      if(reduce) return;
+      n = n || 140;
+      var cx = w/2, cy = h*0.32;
+      for(var i=0;i<n;i++){
+        var ang = Math.random()*Math.PI*2;
+        var sp = (Math.random()*9+3)*dpr;
+        parts.push({
+          x: cx + (Math.random()-0.5)*80*dpr,
+          y: cy + (Math.random()-0.5)*40*dpr,
+          vx: Math.cos(ang)*sp,
+          vy: Math.sin(ang)*sp - 4*dpr,
+          g: (0.16+Math.random()*0.12)*dpr,
+          r: (Math.random()*4+2)*dpr,
+          rot: Math.random()*Math.PI,
+          vr: (Math.random()-0.5)*0.3,
+          life: 1,
+          col: colors[Math.floor(Math.random()*colors.length)],
+          shape: Math.random()<0.3 ? "rect" : "circle"
+        });
+      }
+      if(!running){ running = true; loop(); }
+    }
+    function loop(){
+      x.clearRect(0,0,w,h);
+      for(var i=parts.length-1;i>=0;i--){
+        var p = parts[i];
+        p.vy += p.g;
+        p.vx *= 0.995;
+        p.x += p.vx; p.y += p.vy;
+        p.rot += p.vr;
+        p.life -= 0.006;
+        if(p.life <= 0 || p.y > h + 60*dpr){ parts.splice(i,1); continue; }
+        x.save();
+        x.translate(p.x,p.y);
+        x.rotate(p.rot);
+        x.globalAlpha = Math.max(0, Math.min(1, p.life));
+        x.fillStyle = p.col;
+        if(p.shape === "rect"){
+          x.fillRect(-p.r, -p.r*0.5, p.r*2, p.r);
+        } else {
+          x.beginPath(); x.arc(0,0,p.r,0,Math.PI*2); x.fill();
+        }
+        x.restore();
+      }
+      if(parts.length){ requestAnimationFrame(loop); }
+      else { running = false; x.clearRect(0,0,w,h); }
+    }
+    return { burst: burst };
+  })();
+
+  /* ============ GATE ============ */
+  var gate = $("#gate"), terminal = $("#terminal"), gateBtn = $("#gateBtn");
+
+  var lines = [
+    { t:"> ИНИЦИАЛИЗАЦИЯ ПРОТОКОЛА...", c:"dim", d:380 },
+    { t:"> ПРОВЕРКА БАЗЫ ДАННЫХ ПОГРАНСЛУЖБЫ...", c:"dim", d:520 },
+    { t:"[OK] ФАЙЛ НАЙДЕН: CHURIN-A.A.", c:"ok", d:420 },
+    { t:"[OK] ДАТА РОЖДЕНИЯ: 06.11.2005", c:"ok", d:380 },
+    { t:"[OK] ВОЗРАСТ: 21 ГОД", c:"ok", d:380 },
+    { t:"[OK] МЕСТО РОЖДЕНИЯ: УЛАН-УДЭ", c:"ok", d:380 },
+    { t:"[OK] ТЕКУЩАЯ ДИСЛОКАЦИЯ: МОСКВА", c:"ok", d:420 },
+    { t:"[OK] ПРИЧИНА: УЧЁБА, 2023–2028", c:"ok", d:420 },
+    { t:"> СКАНИРОВАНИЕ НА МЕМЫ...", c:"dim", d:520 },
+    { t:"[!!] ОБНАРУЖЕНО: АПЧИХБА, ЧУРКА, ЛОШАРА, НЕДРОЧАБРЬ", c:"bad", d:520 },
+    { t:"> СВЕРКА С БАЗОЙ ДРУЗЕЙ...", c:"dim", d:480 },
+    { t:"[OK] СОВПАДЕНИЕ: КИРИЛЛ", c:"ok", d:420 },
+    { t:"", c:"", d:200 },
+    { t:"СТАТУС: ДОПУЩЕН. ДОБРО ПОЖАЛОВАТЬ, САНЯ.", c:"ok", d:600 }
+  ];
+
+  function typeLine(el, text, speed){
+    return new Promise(function(res){
+      if(!text){ res(); return; }
+      var i = 0;
+      el.classList.add("cursor-blink");
+      (function step(){
+        if(i >= text.length){ el.classList.remove("cursor-blink"); res(); return; }
+        el.textContent += text.charAt(i++);
+        setTimeout(step, speed);
+      })();
+    });
+  }
+
+  async function runGate(){
+    gateBtn.disabled = true;
+    gateBtn.textContent = "Проверяем...";
+    terminal.innerHTML = "";
+    for(var i=0;i<lines.length;i++){
+      var L = lines[i];
+      var line = document.createElement("div");
+      if(L.c) line.className = L.c;
+      terminal.appendChild(line);
+      await typeLine(line, L.t, 12);
+      await new Promise(function(r){ setTimeout(r, L.d); });
+      terminal.scrollTop = terminal.scrollHeight;
+    }
+    gateBtn.textContent = "ДОПУСК РАЗРЕШЁН";
+    gateBtn.style.borderColor = "var(--lime)";
+    gateBtn.style.color = "var(--lime)";
+    setTimeout(function(){
+      gate.classList.add("hidden");
+      document.body.classList.remove("locked");
+      document.body.classList.add("entered");
+      startHero();
+      confetti.burst(180);
+    }, 650);
+  }
+
+  gateBtn.addEventListener("click", runGate);
+
+  /* ============ HERO TYPING ============ */
+  var heroSub = $("#heroSub");
+  var heroText = "06.11.2005 → 06.11.2026 · 21 год · Улан-Удэ → Москва → 2028 · лошара, но наш";
+  function startHero(){
+    if(reduce){ heroSub.textContent = heroText; return; }
+    var i = 0;
+    heroSub.innerHTML = "";
+    var caret = document.createElement("span");
+    caret.className = "caret"; caret.textContent = "▌";
+    (function step(){
+      if(i < heroText.length){
+        heroSub.textContent = heroText.slice(0, ++i);
+        heroSub.appendChild(caret);
+        setTimeout(step, 26);
+      } else {
+        setTimeout(function(){ caret.remove(); }, 1200);
+      }
+    })();
+  }
+
+  /* ============ TICKER ============ */
+  (function ticker(){
+    var items = [
+      "С ДНЁМ РОЖДЕНИЯ, САНЯ",
+      "21 ГОД",
+      "УЛАН-УДЭ → МОСКВА → 2028",
+      "АПЧИХБА 🤙🖤",
+      "ЧУРКА, НО НАШ",
+      "НЕДРОЧАБРЬ УЖЕ СКОРО",
+      "1,5К ЧАСОВ В ДОТЕ — ЭТО ДИАГНОЗ",
+      "ШАУРМА ЗА 180",
+      "БОРОДА ДЛИННЕЕ ВОЛОС",
+      "Я ТВОЕ ВСЕ ЕБАЛ",
+      "ЛОШАРА",
+      "ДОПУЩЕН"
+    ];
+    var track = $("#tickerTrack");
+    var html = "";
+    for(var r=0;r<2;r++){
+      for(var i=0;i<items.length;i++){
+        html += "<span><b>◆</b> " + items[i] + "</span>";
+      }
+    }
+    track.innerHTML = html;
+  })();
+
+  /* ============ CARDS ============ */
+  var cardsData = [
+    { ico:"🏔", tag:"01", title:"Улан-Удэ", text:"Шишковка, Элеватор, Юбилейный. Ты знаешь эти места лучше, чем Москву. И это <b>нормально</b>." },
+    { ico:"✈️", tag:"02", title:"Москва, 2023", text:"Уехал на учёбу. Вернёшься полностью в <b>2028</b>. Летом и зимой приезжаешь в отпуск — и каждый раз это событие." },
+    { ico:"🎓", tag:"03", title:"Ученик года", text:"МАН, жеребьёвка, 4-е место среди школ, лицеев и гимназий. А потом ты всё равно <b>даун</b>. Как?" },
+    { ico:"🥊", tag:"04", title:"Тренировки", text:"MMA, борьба, КВ, «чуть не сдох». Домой шёл пешком, потому что ноги не шли. <b>Красавчик</b>." },
+    { ico:"🎮", tag:"05", title:"Дота / КС / Геншин", text:"1,5к часов в доте, «Токийский гуль» за 3 дня, «Рик и Морти» — норм. <b>Ты не лошара</b>. Ты лошара с опытом." },
+    { ico:"🚗", tag:"06", title:"Механика", text:"Жига, Нива, Камаз в деревне. Эстакада впереди. Гранта с нормальным сцеплением — <b>мечта</b>." },
+    { ico:"💨", tag:"07", title:"Жижа и Конор", text:"Картриджи, Хаски, «мэд», «чарик». Три затяжки — и ты уже в другом измерении. <b>Не надо</b>. Но смешно." },
+    { ico:"🧔", tag:"08", title:"Борода", text:"Борода длиннее волос на голове. Это не баг, это <b>фича</b>. И да, тебе идёт." }
+  ];
+  (function buildCards(){
+    var wrap = $("#cards");
+    var html = "";
+    for(var i=0;i<cardsData.length;i++){
+      var c = cardsData[i];
+      html += '<div class="card reveal"><span class="tag">'+c.tag+'</span><span class="ico">'+c.ico+'</span><h3>'+c.title+'</h3><p>'+c.text+'</p></div>';
+    }
+    wrap.innerHTML = html;
+  })();
+
+  /* card hover glow */
+  $$(".card").forEach(function(card){
+    card.addEventListener("mousemove", function(e){
+      var r = card.getBoundingClientRect();
+      card.style.setProperty("--mx", (e.clientX - r.left)+"px");
+      card.style.setProperty("--my", (e.clientY - r.top)+"px");
+    });
+  });
+
+  /* ============ REVEAL ============ */
+  (function reveal(){
+    var els = $$(".reveal");
+    if(!("IntersectionObserver" in window)){
+      els.forEach(function(e){ e.classList.add("in"); });
+      return;
+    }
+    var io = new IntersectionObserver(function(entries){
+      entries.forEach(function(en){
+        if(en.isIntersecting){
+          en.target.classList.add("in");
+          io.unobserve(en.target);
+        }
+      });
+    }, { threshold:0.12 });
+    els.forEach(function(e){ io.observe(e); });
+  })();
+
+  /* ============ ROAST ============ */
+  var roasts = [
+    "лошара",
+    "ты чурка?",
+    "даун, иди нахуй",
+    "апчихба 🤙🖤",
+    "двоечник",
+    "недрочабрь уже завтра, готов?",
+    "борода длиннее волос на голове, это диагноз",
+    "1,5к часов в доте — это не достижение, это приговор",
+    "«Токийский гуль» за 3 дня — ты не смотрел, ты пролистал",
+    "помнишь, как ты чуть не сдох с трёх затяжек?",
+    "шаурма за 180 — единственная нормальная инвестиция в твоей жизни",
+    "ты в Москве, а мемы всё те же",
+    "эстакада тебя ждёт, механик",
+    "я твое все ебал",
+    "«Фарфоровая кукла влюбилась» — это про тебя",
+    "ты не лошара, ты лошара с опытом",
+    "ученик года, а до сих пор не понял, что ты даун",
+    "Кирилл: «ты чурка?» Саня: «да»",
+    "твоя борода — это отдельный персонаж",
+    "ты вернёшься в 2028 и мы это отметим"
+  ];
+  var lastRoast = -1;
+  function doRoast(){
+    var el = $("#roast");
+    var i;
+    do { i = Math.floor(Math.random()*roasts.length); } while(i === lastRoast && roasts.length > 1);
+    lastRoast = i;
+    el.textContent = roasts[i];
+    el.classList.remove("pop");
+    void el.offsetWidth;
+    el.classList.add("pop");
+    if(i === 13 || i === 3){ confetti.burst(90); }
+  }
+  $("#roastBtn").addEventListener("click", doRoast);
+  $("#scrollRoast").addEventListener("click", function(){
+    $("#roast").scrollIntoView({ behavior:"smooth", block:"center" });
+    setTimeout(doRoast, 500);
+  });
+  $("#scrollDossier").addEventListener("click", function(){
+    $("#dossier").scrollIntoView({ behavior:"smooth", block:"start" });
+  });
+
+  /* ============ SALUTE ============ */
+  function salute(){
+    confetti.burst(220);
+    if(!reduce){
+      setTimeout(function(){ confetti.burst(140); }, 320);
+      setTimeout(function(){ confetti.burst(160); }, 620);
+    }
+  }
+  $("#saluteBtn").addEventListener("click", salute);
+  $("#finalSalute").addEventListener("click", salute);
+
+  /* ============ SECRET ============ */
+  var modal = $("#secretModal");
+  function openSecret(){
+    modal.classList.add("open");
+    document.body.classList.add("locked");
+    confetti.burst(240);
+    if(!reduce){
+      setTimeout(function(){ confetti.burst(160); }, 400);
+    }
+  }
+  function closeSecret(){
+    modal.classList.remove("open");
+    document.body.classList.remove("locked");
+  }
+  $("#secretBtn").addEventListener("click", openSecret);
+  $("#finalSecret").addEventListener("click", openSecret);
+  $("#secretFromHero").addEventListener("click", openSecret);
+  $("#secretClose").addEventListener("click", closeSecret);
+  modal.addEventListener("click", function(e){ if(e.target === modal) closeSecret(); });
+  addEventListener("keydown", function(e){ if(e.key === "Escape" && modal.classList.contains("open")) closeSecret(); });
+
+  /* ============ PARALLAX HERO ============ */
+  (function parallax(){
+    if(reduce) return;
+    if(matchMedia("(pointer: coarse)").matches) return;
+    var title = $(".hero-title");
+    var meta = $(".hero-meta");
+    var chip = $(".chip");
+    var raf = null;
+    addEventListener("mousemove", function(e){
+      if(raf) return;
+      raf = requestAnimationFrame(function(){
+        raf = null;
+        var dx = (e.clientX / innerWidth - 0.5);
+        var dy = (e.clientY / innerHeight - 0.5);
+        if(title) title.style.transform = "translate("+(dx*-10)+"px,"+(dy*-6)+"px)";
+        if(meta) meta.style.transform = "translate("+(dx*8)+"px,"+(dy*5)+"px)";
+        if(chip) chip.style.transform = "translate("+(dx*4)+"px,"+(dy*3)+"px)";
+      });
+    });
+  })();
+
+})();
+</script>
+</body>
+</html>
